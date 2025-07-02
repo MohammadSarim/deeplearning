@@ -32,11 +32,14 @@ class ADALinePytorch():
 
     def forward(self, x):
         linear = torch.mm(x, self.weights) + self.bias
-        return linear
+        return linear.view(-1)
     
     def backward(self, x, y):
         error  = y - self.forward(x)  
-        return error
+        # Compute gradients
+        grad_w = -2 * torch.matmul(x.T, error.reshape(-1, 1)) / x.shape[0]
+        grad_b = -2 * torch.sum(error) / x.shape[0]
+        return grad_w, grad_b
     
     def train(self, X, y, epochs, batch_size=10):
         num_samples = X.shape[0]
@@ -52,12 +55,7 @@ class ADALinePytorch():
                 xi = X_shuffled[start:end]
                 yi = y_shuffled[start:end]
 
-                outputs = self.forward(xi).reshape(-1)
-                errors = yi - outputs
-
-                # Compute gradients
-                grad_w = -2 * torch.matmul(xi.T, errors.reshape(-1, 1)) / xi.shape[0]
-                grad_b = -2 * torch.sum(errors) / xi.shape[0]
+                grad_w, grad_b = self.backward(xi, yi)
 
                 # Update weights and bias
                 self.weights -= self.lr * grad_w
@@ -96,11 +94,11 @@ y_train_tensor = torch.tensor(y_train, dtype=torch.float64, device=device)
 y_test_tensor = torch.tensor(y_test, dtype=torch.float64, device=device)
 
 obj = ADALinePytorch(2, 0.01)
-obj.train(X_train_tensor, y_train_tensor, 20, batch_size=10)
+obj.train(X_train_tensor, y_train_tensor, 10, batch_size=10)
 
 print(obj.accuracy(X_test_tensor, y_test_tensor))
 
-obj.visualization(X_test_tensor, y_test_tensor, 'Train Dataset')
+obj.visualization(X_test_tensor, y_test_tensor, 'Test Dataset')
 
 # ----------------- Analytical Solution -------------------
 
